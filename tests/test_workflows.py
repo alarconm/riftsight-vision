@@ -376,10 +376,11 @@ def test_the_quickstart_workflow_runs_the_documents_beginner_path_on_linux_and_i
     assert "secrets." not in text and "vars." not in text
     assert "permissions:\n  contents: read\n" in text and text.count("permissions:") == 1
     assert "runs-on: ubuntu-latest" in text and "runs-on: windows-latest" in text
+    assert '      - uses: actions/setup-python@v5\n        with:\n          python-version: "3.11"\n' in text
     assert "          distribution: Ubuntu-24.04\n          wsl-version: 2\n" in text
     assert "    defaults:\n      run:\n        shell: wsl-bash {0}\n" in text
     used = [line.strip() for line in text.splitlines() if "uses: " in line]
-    assert used == ["- uses: actions/checkout@v4", "- uses: actions/setup-node@v4",
+    assert used == ["- uses: actions/checkout@v4", "- uses: actions/setup-python@v5", "- uses: actions/setup-node@v4",
                     "- uses: actions/checkout@v4", f"uses: {SETUP_WSL} # v7.2.0", f"uses: {SETUP_WSL} # v7.2.0"]
     # An action that is not GitHub's own is pinned to a full commit, never to a tag or a branch.
     for line in used:
