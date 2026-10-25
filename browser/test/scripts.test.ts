@@ -3,7 +3,8 @@
 // preview (scripts/build-pages.mjs, scripts/pages-preview.mjs) and of the headless example
 // (examples/score-headless.mjs). No browser is started here.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,6 +13,14 @@ import { describe, expect, it } from "vitest";
 
 const fileOf = (name: string): string => fileURLToPath(new URL(`../${name}`, import.meta.url));
 const run = (script: string, ...args: string[]) => spawnSync(process.execPath, [fileOf(script), ...args], { encoding: "utf-8" });
+const statusWith = (url: string, headers: Record<string, string>): Promise<number | undefined> => new Promise((resolveStatus, reject) => {
+  const request = httpRequest(url, { headers }, (response) => {
+    response.resume();
+    response.on("end", () => resolveStatus(response.statusCode));
+  });
+  request.on("error", reject);
+  request.end();
+});
 
 describe("the local server", () => {
   const SERVER = "scripts/demo-server.mjs";
@@ -157,6 +166,30 @@ describe("the local server", () => {
     // A folder keeps a request inside itself; the one file has no folder to leave.
     expect(paths.inside("/srv/release", "release.json")).toBe(resolve("/srv/release/release.json"));
     for (const path of ["../secret", "a/../../secret"]) expect(paths.inside("/srv/release", path), path).toBeNull();
+    expect(paths.loopbackRequest({ host: "127.0.0.1:8765" }, 8765)).toBe(true);
+    expect(paths.loopbackRequest({ host: "LOCALHOST:8765", origin: "http://127.0.0.1:9911", "sec-fetch-site": "same-site" }, 8765)).toBe(true);
+    for (const headers of [
+      {},
+      { host: "attacker.example:8765" },
+      { host: "127.0.0.1:8765", origin: "https://attacker.example" },
+      { host: "127.0.0.1:8765", "sec-fetch-site": "cross-site" },
+    ]) expect(paths.loopbackRequest(headers, 8765), JSON.stringify(headers)).toBe(false);
+
+    const root = mkdtempSync(join(tmpdir(), "cardvision-paths-"));
+    try {
+      const servedRoot = join(root, "served");
+      const outside = join(root, "outside");
+      mkdirSync(servedRoot);
+      mkdirSync(outside);
+      writeFileSync(join(outside, "secret.txt"), "private");
+      symlinkSync(outside, join(servedRoot, "escape"), process.platform === "win32" ? "junction" : "dir");
+      expect(paths.inside(servedRoot, "escape/secret.txt")).not.toBeNull();
+      expect(paths.realInside(servedRoot, "escape/secret.txt")).toBeNull();
+      writeFileSync(join(servedRoot, "public.txt"), "public");
+      expect(paths.realInside(servedRoot, "public.txt")).toBe(resolve(join(servedRoot, "public.txt")));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
     expect(paths.fileAddress("http://127.0.0.1:8765", served, true)).toBe("http://127.0.0.1:8765/?file=/file/my%20table.png&images=/images/");
     expect(paths.fileAddress("http://127.0.0.1:8765", served, false)).toBe("http://127.0.0.1:8765/?file=/file/my%20table.png");
   });
@@ -190,6 +223,9 @@ describe("the local server", () => {
       const others = ["/file/", "/file/other.png", "/file/notes.txt", "/file/my%20table.png/x", "/file/..%2Fnotes.txt", "/file/%2e%2e/notes.txt", "/file/table.png", "/file/release/release.json"];
       for (const path of others) expect([(await fetch(`${origin}${path}`)).status, path]).toEqual([404, path]);
       expect((await fetch(`${origin}/file/my%20table.png`, { method: "POST" })).status).toBe(405);
+      expect(await statusWith(`${origin}/config.json`, { host: "attacker.example" })).toBe(403);
+      expect((await fetch(`${origin}/config.json`, { headers: { origin: "https://attacker.example" } })).status).toBe(403);
+      expect((await fetch(`${origin}/config.json`, { headers: { "sec-fetch-site": "cross-site" } })).status).toBe(403);
     } finally {
       server.kill();
       rmSync(made.root, { recursive: true, force: true });

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// What the local server (scripts/demo-server.mjs) serves, and at which paths. These functions
-// start nothing and read no file, so the rules can be tested without a server.
+// What the local servers (scripts/demo-server.mjs and scripts/pages-preview.mjs) serve, and at
+// which paths. These functions start nothing; only realInside reads the filesystem, to resolve
+// links before a selected folder is served.
 
+import { realpathSync } from "node:fs";
 import { basename, extname, normalize, resolve, sep } from "node:path";
 
 export const TYPES = {
@@ -21,6 +23,34 @@ export function inside(folder, relative) {
   const root = resolve(folder);
   const file = resolve(root, normalize(relative).replace(/^[/\\]+/, ""));
   return file === root || file.startsWith(root + sep) ? file : null;
+}
+
+/** The existing file a request names inside a folder after links/junctions are resolved, or
+ * null when it is absent or its real path leaves the folder's real path. */
+export function realInside(folder, relative) {
+  const lexical = inside(folder, relative);
+  if (lexical === null) return null;
+  try {
+    const root = realpathSync(folder);
+    const file = realpathSync(lexical);
+    return file === root || file.startsWith(root + sep) ? file : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether request headers belong to this loopback server. A browser page on another origin
+ * must not be able to reach files selected for a local demo through DNS rebinding or a direct
+ * cross-site request. Another loopback port is accepted as an Origin for the two-port Pages
+ * preview. Command-line clients may omit Origin and Sec-Fetch-Site, but not Host. */
+export function loopbackRequest(headers, port) {
+  const host = headers.host;
+  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+  if (typeof host !== "string" || !hosts.has(host.toLowerCase())) return false;
+  const origin = headers.origin;
+  if (origin !== undefined && (typeof origin !== "string" || !/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(origin.toLowerCase()))) return false;
+  const site = headers["sec-fetch-site"];
+  return site === undefined || (typeof site === "string" && ["none", "same-origin", "same-site"].includes(site.toLowerCase()));
 }
 
 /**
