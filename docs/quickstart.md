@@ -4,11 +4,11 @@
 
 This runs the whole pipeline on a toy card game that the repository draws from colored
 shapes. It needs no card art, no video and no download beyond the Python packages. Every
-command here was run as written, on macOS with Python 3.10; the output shown is real. A
+command here was run as written on macOS; the output shown is real. A
 workflow, `.github/workflows/quickstart.yml`, runs the same steps on Linux and on Windows in
 WSL.
 
-You need Python 3.10 or later, and a copy of the repository: step 0 below gets it. Run
+You need Python 3.11 or later, and a copy of the repository: step 0 below gets it. Run
 everything from the repository's root, the folder that holds `README.md`.
 
 **Video:** [Try the toy game: quickstart and demo page](https://www.youtube.com/watch?v=Xq8Dwal1f6E) follows this page.
@@ -24,7 +24,7 @@ A Windows terminal such as PowerShell is not supported. What was checked on whic
 GPU training included, is in the [adapt guide](adapt-your-game.md#before-you-start).
 
 - **macOS:** as written.
-- **Linux:** install Python 3.10 or later, with its `venv` module, and Node 22 or later (for
+- **Linux:** install Python 3.11 or later, with its `venv` module, and Node 22 or later (for
   the browser part) with your package manager. Where a step says `open`, use `xdg-open`.
 - **Windows:** open PowerShell with "Run as administrator", type `wsl --install` and restart
   the computer. Then open **Ubuntu** from the Start menu. The first time, it asks you to choose

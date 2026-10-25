@@ -229,7 +229,7 @@ def read_document(path: str | Path) -> dict[str, Any]:
     elif path.suffix.lower() == ".toml":
         try:
             import tomllib
-        except ImportError:  # Python 3.10
+        except ImportError:  # Compatibility for Python older than the supported 3.11 floor.
             try:
                 import tomli as tomllib
             except ImportError:

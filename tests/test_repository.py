@@ -270,7 +270,7 @@ def test_the_dev_extra_can_run_every_test_that_needs_no_pytorch():
     assert names("dev") == {"pytest", "pytest-xdist", "onnx", "opencv-python-headless", "jsonschema"}
     assert not {"torch", "torchvision", "safetensors"} & names("dev")
     # What the tests may skip for: these modules only. cv2 and jsonschema come with "dev"; the
-    # rest come with "train" (tomli stands in for tomllib on Python 3.10) and with YOLOX.
+    # rest come with "train" and with YOLOX. tomli remains named by compatibility-only tests.
     asked = set()
     for path in (ROOT / "tests").glob("*.py"):
         asked |= set(re.findall(r"importorskip\(\"([a-z0-9_]+)", path.read_text(encoding="utf-8")))
