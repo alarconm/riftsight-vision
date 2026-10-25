@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // What the local servers (scripts/demo-server.mjs and scripts/pages-preview.mjs) serve, and at
-// which paths. These functions start nothing; only realInside reads the filesystem, to resolve
-// links before a selected folder is served.
+// which paths. These functions start nothing; realInside and openRegular read the filesystem to
+// resolve links and prove that a selected name is still the regular file that gets served.
 
-import { realpathSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, realpathSync, statSync } from "node:fs";
 import { basename, extname, normalize, resolve, sep } from "node:path";
 
 export const TYPES = {
@@ -35,6 +35,24 @@ export function realInside(folder, relative) {
     const file = realpathSync(lexical);
     return file === root || file.startsWith(root + sep) ? file : null;
   } catch {
+    return null;
+  }
+}
+
+/** Open a canonical path without waiting on a FIFO, then prove the opened descriptor and the
+ * name still identify the same regular file. The caller owns the returned descriptor. */
+export function openRegular(file) {
+  let fd;
+  try {
+    const flags = constants.O_RDONLY | (constants.O_NONBLOCK ?? 0) | (constants.O_NOFOLLOW ?? 0);
+    fd = openSync(file, flags);
+    const info = fstatSync(fd);
+    if (!info.isFile()) throw new Error("not a regular file");
+    const named = statSync(file);
+    if (realpathSync(file) !== file || named.dev !== info.dev || named.ino !== info.ino) throw new Error("file changed while it was opened");
+    return { fd, info };
+  } catch {
+    if (fd !== undefined) closeSync(fd);
     return null;
   }
 }

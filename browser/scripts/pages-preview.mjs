@@ -15,11 +15,11 @@
 // and is served from dist/pages/ as it is: no file is added, changed or answered for by the
 // server itself. It only answers GET requests, and makes no requests of its own.
 
-import { closeSync, createReadStream, existsSync, fstatSync, openSync, realpathSync, statSync } from "node:fs";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 
-import { loopbackRequest, realInside, TYPES } from "./demo-paths.mjs";
+import { loopbackRequest, openRegular, realInside, TYPES } from "./demo-paths.mjs";
 import { buildPages, PAGES_DIST } from "./pages.mjs";
 
 const USAGE = `Usage: npm run preview:pages -- (--release FOLDER | --release-url URL | --games LIST [--toy FOLDER]) [--port N] [--release-port N] [--out FOLDER]
@@ -91,21 +91,13 @@ function folderServer(folder, headers) {
       path = null;
     }
     const file = request.method === "GET" && path !== null ? realInside(folder, path.endsWith("/") ? `${path}index.html` : path) : null;
-    let fd;
-    let info;
-    try {
-      if (!file) throw new Error("no file");
-      fd = openSync(file, "r");
-      info = fstatSync(fd);
-      if (!info.isFile()) throw new Error("not a regular file");
-      const named = statSync(file);
-      if (realpathSync(file) !== file || named.dev !== info.dev || named.ino !== info.ino) throw new Error("file changed while it was opened");
-    } catch {
-      if (fd !== undefined) closeSync(fd);
+    const opened = file ? openRegular(file) : null;
+    if (opened === null) {
       response.writeHead(request.method === "GET" ? 404 : 405, { "content-type": TYPES[".txt"], ...headers });
       response.end(request.method === "GET" ? "not found\n" : "only GET is answered\n");
       return;
     }
+    const { fd, info } = opened;
     response.writeHead(200, {
       "content-type": TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
       "content-length": info.size,

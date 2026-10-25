@@ -25,12 +25,12 @@
 // /release/, with --images the demo page shows card images from /images/ in its tooltip, and
 // with --geometric the scoring page runs with the geometric stage.
 
-import { closeSync, createReadStream, existsSync, fstatSync, openSync, realpathSync, statSync } from "node:fs";
+import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { fileAddress, fileAt, IMAGES_BASE, loopbackRequest, realInside, servedFile, TYPES } from "./demo-paths.mjs";
+import { fileAddress, fileAt, IMAGES_BASE, loopbackRequest, openRegular, realInside, servedFile, TYPES } from "./demo-paths.mjs";
 
 const USAGE = `Usage: npm run demo -- [--release FOLDER] [--images FOLDER] [--port N] [--file PATH]
                        [--geometric FILE]
@@ -143,21 +143,13 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify(found.json));
     return;
   }
-  let fd;
-  let info;
-  try {
-    if (!found.file) throw new Error("no file");
-    fd = openSync(found.file, "r");
-    info = fstatSync(fd);
-    if (!info.isFile()) throw new Error("not a regular file");
-    const named = statSync(found.file);
-    if (realpathSync(found.file) !== found.file || named.dev !== info.dev || named.ino !== info.ino) throw new Error("file changed while it was opened");
-  } catch {
-    if (fd !== undefined) closeSync(fd);
+  const opened = found.file ? openRegular(found.file) : null;
+  if (opened === null) {
     response.writeHead(request.method === "GET" ? 404 : 405, { "content-type": TYPES[".txt"] });
     response.end(request.method === "GET" ? "not found\n" : "only GET is answered\n");
     return;
   }
+  const { fd, info } = opened;
   response.writeHead(200, {
     "content-type": TYPES[extname(found.file).toLowerCase()] ?? "application/octet-stream",
     "content-length": info.size,

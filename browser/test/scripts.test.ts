@@ -197,6 +197,8 @@ describe("the local server", () => {
   it("started with --file, prints the address that opens it and answers for that file only", async () => {
     if (!existsSync(fileOf("dist/demo/index.html"))) return; // Not built: see the test of --port above.
     const made = madeUp();
+    const fifo = join(made.release, "blocked.json");
+    if (process.platform !== "win32") expect(spawnSync("mkfifo", [fifo]).status).toBe(0);
     const server = spawn(process.execPath, [fileOf(SERVER), "--release", made.release, "--images", made.images, "--file", made.picture, "--port", "0"], { stdio: ["ignore", "pipe", "pipe"] });
     try {
       const said = await new Promise<string>((resolveSaid, reject) => {
@@ -226,6 +228,10 @@ describe("the local server", () => {
       expect(await statusWith(`${origin}/config.json`, { host: "attacker.example" })).toBe(403);
       expect((await fetch(`${origin}/config.json`, { headers: { origin: "https://attacker.example" } })).status).toBe(403);
       expect((await fetch(`${origin}/config.json`, { headers: { "sec-fetch-site": "cross-site" } })).status).toBe(403);
+      if (process.platform !== "win32") {
+        expect((await fetch(`${origin}/release/blocked.json`, { signal: AbortSignal.timeout(5_000) })).status).toBe(404);
+        expect((await fetch(`${origin}/release/release.json`, { signal: AbortSignal.timeout(5_000) })).status).toBe(200);
+      }
     } finally {
       server.kill();
       rmSync(made.root, { recursive: true, force: true });
@@ -307,6 +313,8 @@ describe("the hosted demo's build and preview", () => {
     const out = join(root, "site");
     mkdirSync(release);
     writeFileSync(join(release, "release.json"), '{"made":"up"}');
+    const fifo = join(release, "blocked.json");
+    if (process.platform !== "win32") expect(spawnSync("mkfifo", [fifo]).status).toBe(0);
     const server = spawn(process.execPath, [fileOf(PREVIEW), "--release", release, "--port", "0", "--release-port", "0", "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
     try {
       const said = await new Promise<string>((resolveSaid, reject) => {
@@ -335,6 +343,10 @@ describe("the hosted demo's build and preview", () => {
       const document = await fetch(`${releaseOrigin}/release.json`);
       expect([document.status, document.headers.get("access-control-allow-origin"), await document.text()]).toEqual([200, "*", '{"made":"up"}']);
       expect((await fetch(`${releaseOrigin}/release.json`, { method: "POST" })).status).toBe(405);
+      if (process.platform !== "win32") {
+        expect((await fetch(`${releaseOrigin}/blocked.json`, { signal: AbortSignal.timeout(5_000) })).status).toBe(404);
+        expect((await fetch(`${releaseOrigin}/release.json`, { signal: AbortSignal.timeout(5_000) })).status).toBe(200);
+      }
     } finally {
       server.kill();
       rmSync(root, { recursive: true, force: true });
