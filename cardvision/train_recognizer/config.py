@@ -236,12 +236,12 @@ def check_init(init: Any, where: str = "[model] init") -> None:
 def _load_toml(path: Path) -> dict[str, Any]:
     try:
         import tomllib
-    except ImportError:  # Python 3.10
+    except ImportError:  # Compatibility for Python older than the supported 3.11 floor.
         try:
             import tomli as tomllib
         except ImportError:
             raise RuntimeError(
-                'reading a TOML config on Python 3.10 needs tomli, part of an optional dependency group: '
+                'reading a TOML config on Python older than 3.11 needs tomli: '
                 'python -m pip install -e ".[train]" in the repository folder'
             ) from None
     with open(path, "rb") as handle:

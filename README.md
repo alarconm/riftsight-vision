@@ -51,7 +51,7 @@ and the limits.
 ## Quickstart
 
 This runs the whole pipeline on a toy card game that the repository draws from colored shapes:
-no card art, no video and no download beyond the Python packages. You need Python 3.10 or
+no card art, no video and no download beyond the Python packages. You need Python 3.11 or
 later, on macOS, Linux, or Ubuntu under WSL 2 on Windows. Paste this into the terminal:
 
 ```

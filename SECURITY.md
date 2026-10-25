@@ -27,6 +27,10 @@ answer.
   from a URL only when you pass one. Every other command reads local files only.
 - **The labeling tool** listens on `127.0.0.1` only, has no login and opens no connection
   itself. Do not expose its port to a network.
+- **The browser demo and Pages preview** also listen on `127.0.0.1` only. They accept only
+  loopback Host and browser-origin headers, and a file reached through a link or junction is
+  served only when its real path remains inside the folder you selected. Do not proxy or
+  expose either local server to a network.
 - **Checkpoints.** A PyTorch checkpoint is a pickle, and unpickling a file can run code.
   The released weights are ONNX only; no PyTorch checkpoint is published. The tools read a
   pickle checkpoint in PyTorch's restricted mode; `--trust-checkpoint` lifts that and is only

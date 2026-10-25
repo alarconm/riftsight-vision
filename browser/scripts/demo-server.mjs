@@ -25,12 +25,12 @@
 // /release/, with --images the demo page shows card images from /images/ in its tooltip, and
 // with --geometric the scoring page runs with the geometric stage.
 
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { fileAddress, fileAt, IMAGES_BASE, inside, servedFile, TYPES } from "./demo-paths.mjs";
+import { fileAddress, fileAt, IMAGES_BASE, loopbackRequest, openRegular, realInside, servedFile, TYPES } from "./demo-paths.mjs";
 
 const USAGE = `Usage: npm run demo -- [--release FOLDER] [--images FOLDER] [--port N] [--file PATH]
                        [--geometric FILE]
@@ -98,6 +98,7 @@ if (file !== undefined) {
     console.error(`--file ${file}: ${served.problem}`);
     process.exit(2);
   }
+  served.file = realpathSync(served.file);
 }
 if (!existsSync(join(dist, "demo", "index.html"))) {
   console.error("dist/demo is missing: run `npm run build` first (`npm run demo` does)");
@@ -115,15 +116,21 @@ function locate(path) {
       },
     };
   }
-  if (path.startsWith("/geometric/")) return { file: geometricFolder ? inside(geometricFolder, path.slice("/geometric/".length)) : null };
-  if (path.startsWith("/release/")) return { file: release ? inside(release, path.slice("/release/".length)) : null };
-  if (path.startsWith(IMAGES_BASE)) return { file: images ? inside(images, path.slice(IMAGES_BASE.length)) : null };
+  if (path.startsWith("/geometric/")) return { file: geometricFolder ? realInside(geometricFolder, path.slice("/geometric/".length)) : null };
+  if (path.startsWith("/release/")) return { file: release ? realInside(release, path.slice("/release/".length)) : null };
+  if (path.startsWith(IMAGES_BASE)) return { file: images ? realInside(images, path.slice(IMAGES_BASE.length)) : null };
   if (path.startsWith("/file/")) return { file: fileAt(served, path) };
-  if (path.startsWith("/lib/")) return { file: inside(dist, path.slice("/lib/".length)) };
-  return { file: inside(join(dist, "demo"), path === "/" ? "index.html" : path) };
+  if (path.startsWith("/lib/")) return { file: realInside(dist, path.slice("/lib/".length)) };
+  return { file: realInside(join(dist, "demo"), path === "/" ? "index.html" : path) };
 }
 
 const server = createServer((request, response) => {
+  const address = server.address();
+  if (typeof address === "string" || address === null || !loopbackRequest(request.headers, address.port)) {
+    response.writeHead(403, { "content-type": TYPES[".txt"], "cache-control": "no-store" });
+    response.end("only this machine may use the local demo\n");
+    return;
+  }
   let path;
   try {
     path = decodeURIComponent(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
@@ -136,17 +143,19 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify(found.json));
     return;
   }
-  if (!found.file || !existsSync(found.file) || !statSync(found.file).isFile()) {
+  const opened = found.file ? openRegular(found.file) : null;
+  if (opened === null) {
     response.writeHead(request.method === "GET" ? 404 : 405, { "content-type": TYPES[".txt"] });
     response.end(request.method === "GET" ? "not found\n" : "only GET is answered\n");
     return;
   }
+  const { fd, info } = opened;
   response.writeHead(200, {
     "content-type": TYPES[extname(found.file).toLowerCase()] ?? "application/octet-stream",
-    "content-length": statSync(found.file).size,
+    "content-length": info.size,
     "cache-control": "no-store",
   });
-  createReadStream(found.file).pipe(response);
+  createReadStream(found.file, { fd, autoClose: true }).pipe(response);
 });
 
 server.on("error", (error) => {

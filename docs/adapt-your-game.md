@@ -20,7 +20,7 @@ video. It comes in three tiers. Do them in order and stop when you have what you
   [Measured on another game](#measured-on-another-game-the-one-piece-card-game). Tier 0 is how
   you find out for yours.
 - **Every command on this page was run on a toy game** that the repository draws from plain
-  shapes, on an Apple M3 Max laptop (48 GB, macOS, Python 3.10). The output shown is real. It
+  shapes, on an Apple M3 Max laptop (48 GB, macOS). The output shown is real. It
   proves that the commands work. It says nothing about accuracy on a real game.
 - Where a command could not be run here, it says **not run here** and why.
 - You need images of your game's cards that you are entitled to use. This repository
@@ -152,7 +152,7 @@ the whole block, paste it into the terminal and press Return. A block after "You
 something like" is what the commands print: you do not type it. Your timings, ids and folder
 names will differ.
 
-**Install** (Python 3.10 or later). Paste this into the terminal, from the repository's root:
+**Install** (Python 3.11 or later). Paste this into the terminal, from the repository's root:
 
 ```
 python3 -m venv .venv

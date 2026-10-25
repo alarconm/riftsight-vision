@@ -19,7 +19,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 
-import { inside, TYPES } from "./demo-paths.mjs";
+import { loopbackRequest, openRegular, realInside, TYPES } from "./demo-paths.mjs";
 import { buildPages, PAGES_DIST } from "./pages.mjs";
 
 const USAGE = `Usage: npm run preview:pages -- (--release FOLDER | --release-url URL | --games LIST [--toy FOLDER]) [--port N] [--release-port N] [--out FOLDER]
@@ -77,27 +77,36 @@ if (given.release !== undefined && !existsSync(join(given.release, "release.json
 
 /** A server of one folder's files as they are. `headers` are added to every answer. */
 function folderServer(folder, headers) {
-  return createServer((request, response) => {
+  const server = createServer((request, response) => {
+    const address = server.address();
+    if (typeof address === "string" || address === null || !loopbackRequest(request.headers, address.port)) {
+      response.writeHead(403, { "content-type": TYPES[".txt"], "cache-control": "no-store", ...headers });
+      response.end("only this machine may use the local preview\n");
+      return;
+    }
     let path = null;
     try {
       path = decodeURIComponent(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
     } catch {
       path = null;
     }
-    const file = request.method === "GET" && path !== null ? inside(folder, path.endsWith("/") ? `${path}index.html` : path) : null;
-    if (!file || !existsSync(file) || !statSync(file).isFile()) {
+    const file = request.method === "GET" && path !== null ? realInside(folder, path.endsWith("/") ? `${path}index.html` : path) : null;
+    const opened = file ? openRegular(file) : null;
+    if (opened === null) {
       response.writeHead(request.method === "GET" ? 404 : 405, { "content-type": TYPES[".txt"], ...headers });
       response.end(request.method === "GET" ? "not found\n" : "only GET is answered\n");
       return;
     }
+    const { fd, info } = opened;
     response.writeHead(200, {
       "content-type": TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
-      "content-length": statSync(file).size,
+      "content-length": info.size,
       "cache-control": "no-store",
       ...headers,
     });
-    createReadStream(file).pipe(response);
+    createReadStream(file, { fd, autoClose: true }).pipe(response);
   });
+  return server;
 }
 
 function listen(server, at) {

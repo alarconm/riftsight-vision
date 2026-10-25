@@ -335,8 +335,10 @@ else. `--file` needs `--release`, and a file whose name ends in `.png`, `.jpg`, 
 name that is no picture is said so by name, as any other file is. The page reads the whole
 file into memory before it shows it, so use the file chooser for a long video.
 
-The server listens on 127.0.0.1 only, answers GET requests only, and serves four things: the
-built pages and library, the `--release` folder, the `--images` folder and the one `--file`.
+The server listens on 127.0.0.1 only, accepts only loopback Host and browser-origin headers,
+answers GET requests only, and serves four things: the built pages and library, the `--release`
+folder, the `--images` folder and the one `--file`. A link or junction inside one of those
+folders is served only when its real path remains inside that folder.
 The pages request nothing else, and have no analytics. Its port is 8765; `--port N` takes
 another, and `--port 0` any free one. `npm run demo -- --help` lists the options, and an option
 it does not know is an error.

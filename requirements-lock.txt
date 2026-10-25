@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Exact versions of the base environment the tests were last run in (CPython 3.10, macOS arm64):
-# the runtime dependencies and the "dev" extra together. pyproject.toml holds the supported ranges.
+# Exact versions of the base environment for supported CPython 3.11 and later: the runtime
+# dependencies and the "dev" extra together. pyproject.toml holds the supported ranges.
 #
 #     python -m pip install -r requirements-lock.txt
 #     python -m pip install --no-deps -e .
@@ -31,7 +31,7 @@ onnx==1.23.2
 onnxruntime==1.23.2
 opencv-python-headless==5.0.0.93
 packaging==26.3
-pillow==12.3.0
+pillow==13.0.0
 pluggy==1.6.0
 protobuf==7.36.2
 Pygments==2.21.0
